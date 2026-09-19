@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Installs the `sec` binary to /usr/local/bin and tells you what to run next.
+# Installs Baselock (`sec`) to /usr/local/bin and tells you what to run next.
 # Usage:
 #   sudo ./install.sh
-#   curl -sSL https://raw.githubusercontent.com/abyss/server-sec-cli/main/install.sh | sudo bash
+#   curl -sSL https://raw.githubusercontent.com/wakeoneself/Baselock/main/install.sh | sudo bash
 
-REPO="${SECLI_REPO:-https://github.com/abyss/server-sec-cli}"
+REPO="${SECLI_REPO:-https://github.com/wakeoneself/Baselock}"
 BIN_DIR="${SECLI_BIN:-/usr/local/bin}"
 NAME="sec"
 
@@ -42,7 +42,7 @@ install_from_repo() {
   if [[ -f "${here}/go.mod" && -d "${here}/cmd/sec" ]]; then
     if command -v go >/dev/null 2>&1; then
       cyan "Building sec from this repository…"
-      (cd "$here" && go build -ldflags "-s -w -X github.com/abyss/server-sec-cli/internal/cli.Version=0.1.0" -o "${BIN_DIR}/${NAME}" ./cmd/sec)
+      (cd "$here" && go build -ldflags "-s -w -X github.com/wakeoneself/Baselock/internal/cli.Version=0.1.0" -o "${BIN_DIR}/${NAME}" ./cmd/sec)
       chmod 0755 "${BIN_DIR}/${NAME}"
       return 0
     fi

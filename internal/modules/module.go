@@ -1,9 +1,9 @@
 package modules
 
 import (
-	"github.com/abyss/server-sec-cli/internal/backup"
-	"github.com/abyss/server-sec-cli/internal/plan"
-	"github.com/abyss/server-sec-cli/internal/ui"
+	"github.com/wakeoneself/Baselock/internal/backup"
+	"github.com/wakeoneself/Baselock/internal/plan"
+	"github.com/wakeoneself/Baselock/internal/ui"
 )
 
 type Check struct {

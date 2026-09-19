@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/abyss/server-sec-cli/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/sys"
 )
 
 const RootDir = "/var/lib/sec/backups"

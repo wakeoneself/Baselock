@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/abyss/server-sec-cli/internal/addons/dokploy"
-	"github.com/abyss/server-sec-cli/internal/engine"
-	"github.com/abyss/server-sec-cli/internal/plan"
-	"github.com/abyss/server-sec-cli/internal/sys"
-	"github.com/abyss/server-sec-cli/internal/ui"
-	"github.com/abyss/server-sec-cli/internal/wizard"
+	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
+	"github.com/wakeoneself/Baselock/internal/engine"
+	"github.com/wakeoneself/Baselock/internal/plan"
+	"github.com/wakeoneself/Baselock/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/ui"
+	"github.com/wakeoneself/Baselock/internal/wizard"
 	"github.com/spf13/cobra"
 )
 
@@ -21,8 +21,8 @@ func New() *cobra.Command {
 
 	root := &cobra.Command{
 		Use:           "sec",
-		Short:         "Harden an Ubuntu/Debian box in one command",
-		Long:          "Download it. Run it. The server locks itself down — or it asks a few questions first.",
+		Short:         "Baselock — harden an Ubuntu/Debian box in one command",
+		Long:          "Baselock (sec). Download it. Run it. The server locks itself down — or it asks a few questions first.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,

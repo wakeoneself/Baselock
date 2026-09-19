@@ -3,10 +3,10 @@ package wizard
 import (
 	"fmt"
 
-	"github.com/abyss/server-sec-cli/internal/addons/dokploy"
-	"github.com/abyss/server-sec-cli/internal/plan"
-	"github.com/abyss/server-sec-cli/internal/sys"
-	"github.com/abyss/server-sec-cli/internal/ui"
+	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
+	"github.com/wakeoneself/Baselock/internal/plan"
+	"github.com/wakeoneself/Baselock/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/ui"
 	"github.com/charmbracelet/huh"
 )
 

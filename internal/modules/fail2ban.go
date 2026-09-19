@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/abyss/server-sec-cli/internal/backup"
-	"github.com/abyss/server-sec-cli/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/backup"
+	"github.com/wakeoneself/Baselock/internal/sys"
 )
 
 const fail2banJail = "/etc/fail2ban/jail.local"

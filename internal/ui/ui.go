@@ -122,7 +122,7 @@ func (u *UI) Banner(version, host, osName string, dryRun bool) {
 	if dryRun {
 		badge = u.warn.Render(" DRY-RUN ")
 	}
-	line := fmt.Sprintf("%ssec%s  v%s  ·  %s  ·  %s%s",
+	line := fmt.Sprintf("%sBaselock%s  ·  sec v%s  ·  %s  ·  %s%s",
 		u.emoji("🛡️"),
 		"",
 		version,
@@ -131,7 +131,7 @@ func (u *UI) Banner(version, host, osName string, dryRun bool) {
 		badge,
 	)
 	if u.plain {
-		fmt.Fprintln(u.out, strings.TrimSpace(fmt.Sprintf("sec v%s · %s · %s%s", version, host, osName, map[bool]string{true: " [dry-run]", false: ""}[dryRun])))
+		fmt.Fprintln(u.out, strings.TrimSpace(fmt.Sprintf("Baselock · sec v%s · %s · %s%s", version, host, osName, map[bool]string{true: " [dry-run]", false: ""}[dryRun])))
 		return
 	}
 	fmt.Fprintln(u.out, u.box.Render(u.title.Render(line)))

@@ -1,5 +1,5 @@
 VERSION ?= 0.1.0
-LDFLAGS := -s -w -X github.com/abyss/server-sec-cli/internal/cli.Version=$(VERSION)
+LDFLAGS := -s -w -X github.com/wakeoneself/Baselock/internal/cli.Version=$(VERSION)
 
 .PHONY: build test install clean
 

@@ -1,15 +1,18 @@
-# sec
+# Baselock
 
 **Harden an Ubuntu/Debian box in one command.**
+
+The CLI binary is `sec`.
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Ubuntu / Debian](https://img.shields.io/badge/OS-Ubuntu%20%2F%20Debian-E95420?logo=ubuntu&logoColor=white)](https://docs.dokploy.com/docs/core/guides/production-hardening)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-wakeoneself%2FBaselock-181717?logo=github)](https://github.com/wakeoneself/Baselock)
 
 Download it. Run it. The server locks itself down — or it asks a few questions first.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/abyss/server-sec-cli/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/wakeoneself/Baselock/main/install.sh | sudo bash
 sudo sec
 ```
 
@@ -40,7 +43,7 @@ sudo sec --yes
 `sudo sec` opens a short English wizard. Every question has a one-line *why* and a safe default.
 
 ```text
-┌  sec  v0.1.0  ·  box.example.com  ·  Ubuntu 24.04
+┌  Baselock  ·  sec v0.1.0  ·  box.example.com  ·  Ubuntu 24.04
 │
 │  🔑  Create a sudo user and turn off root SSH?     Yes
 │      Username                                      deploy
@@ -160,6 +163,8 @@ Non-interactive environments (pipe, cron) cannot run the wizard. Pass `--yes` or
 Build from this repo:
 
 ```bash
+git clone https://github.com/wakeoneself/Baselock.git
+cd Baselock
 go build -o sec ./cmd/sec
 sudo ./install.sh
 ```

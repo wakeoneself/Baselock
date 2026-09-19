@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/abyss/server-sec-cli/internal/addons/dokploy"
-	"github.com/abyss/server-sec-cli/internal/backup"
-	"github.com/abyss/server-sec-cli/internal/modules"
-	"github.com/abyss/server-sec-cli/internal/plan"
-	"github.com/abyss/server-sec-cli/internal/sys"
-	"github.com/abyss/server-sec-cli/internal/ui"
+	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
+	"github.com/wakeoneself/Baselock/internal/backup"
+	"github.com/wakeoneself/Baselock/internal/modules"
+	"github.com/wakeoneself/Baselock/internal/plan"
+	"github.com/wakeoneself/Baselock/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/ui"
 )
 
 func Enabled(p plan.Plan) []modules.Module {

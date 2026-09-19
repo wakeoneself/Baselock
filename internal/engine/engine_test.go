@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/abyss/server-sec-cli/internal/plan"
+	"github.com/wakeoneself/Baselock/internal/plan"
 )
 
 func TestEnabledOrder(t *testing.T) {

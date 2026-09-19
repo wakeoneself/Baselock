@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/abyss/server-sec-cli/internal/backup"
-	"github.com/abyss/server-sec-cli/internal/modules"
-	"github.com/abyss/server-sec-cli/internal/sys"
-	"github.com/abyss/server-sec-cli/internal/ui"
+	"github.com/wakeoneself/Baselock/internal/backup"
+	"github.com/wakeoneself/Baselock/internal/modules"
+	"github.com/wakeoneself/Baselock/internal/sys"
+	"github.com/wakeoneself/Baselock/internal/ui"
 )
 
 const (

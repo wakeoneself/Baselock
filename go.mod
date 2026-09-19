@@ -1,4 +1,4 @@
-module github.com/abyss/server-sec-cli
+module github.com/wakeoneself/Baselock
 
 go 1.25.7
 
