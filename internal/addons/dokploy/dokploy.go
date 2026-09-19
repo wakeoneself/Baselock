@@ -184,6 +184,15 @@ func denyPublic3000(u *ui.UI) error {
 	if sys.FileExists("/usr/local/bin/ufw-docker") {
 		_ = sys.RunOK("/usr/local/bin/ufw-docker", "deny", serviceName, "3000")
 	}
+	// Never let the 3000 deny (or ufw-docker) swallow Traefik HTTP(S).
+	_ = sys.RunOK("ufw", "allow", "80/tcp")
+	_ = sys.RunOK("ufw", "allow", "443/tcp")
+	_ = sys.RunOK("ufw", "route", "allow", "proto", "tcp", "from", "any", "to", "any", "port", "80")
+	_ = sys.RunOK("ufw", "route", "allow", "proto", "tcp", "from", "any", "to", "any", "port", "443")
+	if sys.FileExists("/usr/local/bin/ufw-docker") {
+		_ = sys.RunOK("/usr/local/bin/ufw-docker", "allow", "80/tcp")
+		_ = sys.RunOK("/usr/local/bin/ufw-docker", "allow", "443/tcp")
+	}
 	u.Detail("UFW denies public tcp/3000")
 	return nil
 }

@@ -74,15 +74,29 @@ func installUfwDocker(ctx Context) error {
 	if err := sys.RunOK(ufwDockerBin, "install"); err != nil {
 		return err
 	}
-	// Re-assert SSH after ufw-docker rewrites after.rules. Reload, don't restart.
+	// Re-assert SSH and public HTTP(S). ufw-docker drops traffic to
+	// Docker-published ports unless we add route allows — otherwise Traefik
+	// (Dokploy apps) goes dark even with `ufw allow 80/443`.
 	sshPort := sys.DetectSSHPort()
 	_ = sys.RunOK("ufw", "allow", sshPort+"/tcp")
+	_ = sys.RunOK("ufw", "allow", "80/tcp")
+	_ = sys.RunOK("ufw", "allow", "443/tcp")
+	allowDockerPublished(80)
+	allowDockerPublished(443)
 	_ = sys.RunOK("ufw", "reload")
 	if err := sys.EnsureSSHListening(); err != nil {
 		return fmt.Errorf("sshd not listening after ufw-docker: %w", err)
 	}
-	ctx.UI.Detail("installed " + ufwDockerBin)
+	ctx.UI.Detail("installed " + ufwDockerBin + " · Docker 80/443 allowed")
 	return nil
+}
+
+func allowDockerPublished(port int) {
+	p := fmt.Sprintf("%d", port)
+	_ = sys.RunOK("ufw", "route", "allow", "proto", "tcp", "from", "any", "to", "any", "port", p)
+	if sys.FileExists(ufwDockerBin) {
+		_ = sys.RunOK(ufwDockerBin, "allow", p+"/tcp")
+	}
 }
 
 func (UFW) Status() Check {

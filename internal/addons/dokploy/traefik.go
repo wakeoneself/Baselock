@@ -165,9 +165,14 @@ func (t *TraefikFile) RestrictPanelRoutes() bool {
 		return false
 	}
 	changed := false
-	for _, v := range routers {
+	for name, v := range routers {
 		rm, ok := v.(map[string]any)
 		if !ok {
+			continue
+		}
+		svc, _ := rm["service"].(string)
+		if !strings.Contains(strings.ToLower(name), "dokploy") &&
+			!strings.Contains(strings.ToLower(svc), "dokploy") {
 			continue
 		}
 		rule, _ := rm["rule"].(string)
