@@ -11,7 +11,10 @@ The CLI binary is `sec`.
 
 Download it. Run it. The server locks itself down — or it asks a few questions first.
 
+**Go 1.22+ is required** to install right now (there is no prebuilt release yet). On Ubuntu/Debian:
+
 ```bash
+sudo apt-get update && sudo apt-get install -y golang-go git
 curl -sSL https://raw.githubusercontent.com/wakeoneself/Baselock/main/install.sh | sudo bash
 sudo sec
 ```
@@ -156,6 +159,8 @@ Non-interactive environments (pipe, cron) cannot run the wizard. Pass `--yes` or
 
 ## Requirements
 
+- **Go 1.22+** — used to build `sec` (`sudo apt-get install -y golang-go`)
+- `git` — the installer clones this repo when no GitHub release exists
 - Ubuntu or Debian (the same families [Dokploy targets](https://docs.dokploy.com/docs/core/installation))
 - Root or sudo
 - A TTY for the wizard, or `--yes` / flags
