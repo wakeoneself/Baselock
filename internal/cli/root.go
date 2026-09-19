@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
 	"github.com/wakeoneself/Baselock/internal/engine"
+	"github.com/wakeoneself/Baselock/internal/modules"
 	"github.com/wakeoneself/Baselock/internal/plan"
 	"github.com/wakeoneself/Baselock/internal/sys"
 	"github.com/wakeoneself/Baselock/internal/ui"
@@ -38,6 +39,7 @@ func New() *cobra.Command {
 	root.AddCommand(newStatusCmd(&p))
 	root.AddCommand(newRevertCmd(&p))
 	root.AddCommand(newAddonCmd(&p))
+	root.AddCommand(newSSHToggleCmd(&p))
 	root.AddCommand(newSetupCmd(&p))
 	root.AddCommand(&cobra.Command{
 		Use:   "version",
@@ -67,7 +69,7 @@ func addGlobalFlags(cmd *cobra.Command, p *plan.Plan) {
 }
 
 func addModuleFlags(cmd *cobra.Command, p *plan.Plan) {
-	cmd.Flags().BoolVar(&p.User, "user", false, "sudo operator + disable root SSH")
+	cmd.Flags().BoolVar(&p.User, "user", false, "sudo operator (root SSH keys stay unless --disable-root-ssh)")
 	cmd.Flags().BoolVar(&p.UFW, "ufw", false, "firewall + ufw-docker")
 	cmd.Flags().BoolVar(&p.SSH, "ssh", false, "disable password authentication")
 	cmd.Flags().BoolVar(&p.Fail2ban, "fail2ban", false, "Fail2ban SSH jail")
@@ -155,6 +157,49 @@ func newRevertCmd(p *plan.Plan) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&module, "module", "", "revert a single module (user, ssh, ufw, fail2ban, docker, dokploy)")
 	return cmd
+}
+
+func newSSHToggleCmd(p *plan.Plan) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "ssh",
+		Short: "Turn root SSH on or off without rerunning the whole harden",
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "root-on",
+		Short: "Allow root SSH with keys (PermitRootLogin prohibit-password)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRootSSH(p, "prohibit-password")
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "root-off",
+		Short: "Refuse root SSH (PermitRootLogin no)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRootSSH(p, "no")
+		},
+	})
+	return cmd
+}
+
+func runRootSSH(p *plan.Plan, value string) error {
+	if err := preflight(p, true); err != nil {
+		return err
+	}
+	u := newUI(p)
+	host := sys.HostInfo()
+	u.Banner(Version, host.Hostname, host.OSName, p.DryRun)
+	ctx := modules.Context{Plan: *p, UI: u, DryRun: p.DryRun}
+	if err := u.Step("Set PermitRootLogin "+value, func() error {
+		return modules.SetPermitRootLogin(ctx, value)
+	}); err != nil {
+		return err
+	}
+	if value == "no" {
+		u.Success("Root SSH is off. Keep this session open until you confirm the operator login.")
+	} else {
+		u.Success("Root SSH accepts keys again: ssh root@" + sys.PublicIP())
+	}
+	return nil
 }
 
 func newAddonCmd(p *plan.Plan) *cobra.Command {

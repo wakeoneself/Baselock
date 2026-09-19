@@ -13,6 +13,40 @@ type SSH struct{}
 
 func (SSH) Name() string { return "ssh" }
 
+// SetPermitRootLogin writes PermitRootLogin and reloads sshd safely.
+// Use "prohibit-password" to allow root SSH with keys, or "no" to refuse root SSH.
+func SetPermitRootLogin(ctx Context, value string) error {
+	if value != "no" && value != "prohibit-password" && value != "yes" {
+		return fmt.Errorf("PermitRootLogin must be no, prohibit-password, or yes")
+	}
+	if ctx.Snapshot != nil {
+		_ = ctx.Snapshot.SaveFile(sshDropIn)
+	}
+	if ctx.DryRun {
+		ctx.UI.Detail("would set PermitRootLogin " + value + " in " + sshDropIn)
+		return nil
+	}
+	prev, _ := os.ReadFile(sshDropIn)
+	cfg := mergeSSHDropIn(string(prev), map[string]string{
+		"PubkeyAuthentication": "yes",
+		"PermitRootLogin":      value,
+	})
+	if err := sys.WriteFile(sshDropIn, []byte(cfg), 0o644); err != nil {
+		return err
+	}
+	if err := sys.TestSSHD(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		return fmt.Errorf("sshd rejected config, restored previous drop-in: %w", err)
+	}
+	if err := sys.ReloadSSH(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		_ = sys.ReloadSSH()
+		return fmt.Errorf("reload sshd: %w", err)
+	}
+	ctx.UI.Detail("PermitRootLogin " + value)
+	return nil
+}
+
 func (SSH) Apply(ctx Context) error {
 	if ctx.Snapshot != nil {
 		_ = ctx.Snapshot.SaveFile(sshDropIn)

@@ -136,6 +136,8 @@ sudo sec apply --dry-run --yes
 
 ```bash
 sudo sec status
+sudo sec ssh root-on          # allow root SSH with keys again
+sudo sec ssh root-off         # PermitRootLogin no
 sudo sec revert
 sudo sec revert --module user
 sudo sec revert --module user --purge-user
