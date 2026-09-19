@@ -25,17 +25,28 @@ func (Docker) Apply(ctx Context) error {
 		_ = ctx.Snapshot.SaveFile(dockerDaemon)
 	}
 
+	prev, _ := os.ReadFile(dockerDaemon)
 	current := map[string]any{}
-	if data, err := os.ReadFile(dockerDaemon); err == nil && len(data) > 0 {
-		_ = json.Unmarshal(data, &current)
+	if len(prev) > 0 {
+		if err := json.Unmarshal(prev, &current); err != nil {
+			return fmt.Errorf("parse %s: %w", dockerDaemon, err)
+		}
 	}
-	current["live-restore"] = true
-	current["userland-proxy"] = false
+
+	swarm := sys.DockerSwarmActive()
+	if swarm {
+		// live-restore is incompatible with Swarm (Dokploy). dockerd refuses to start.
+		delete(current, "live-restore")
+		ctx.UI.Detail("Swarm is active — skipping live-restore (would break dockerd)")
+	} else {
+		current["live-restore"] = true
+	}
 	current["log-driver"] = "json-file"
 	current["log-opts"] = map[string]string{
 		"max-size": "10m",
 		"max-file": "3",
 	}
+
 	raw, err := json.MarshalIndent(current, "", "  ")
 	if err != nil {
 		return err
@@ -51,10 +62,32 @@ func (Docker) Apply(ctx Context) error {
 		return err
 	}
 	if err := sys.RunOK("systemctl", "restart", "docker"); err != nil {
-		return fmt.Errorf("restart docker: %w", err)
+		ctx.UI.Detail("docker restart failed — restoring previous daemon.json")
+		if restoreErr := restoreDaemonJSON(prev); restoreErr != nil {
+			return fmt.Errorf("restart docker: %w (also failed to restore daemon.json: %v)", err, restoreErr)
+		}
+		if err2 := sys.RunOK("systemctl", "restart", "docker"); err2 != nil {
+			return fmt.Errorf("restart docker: %w (restored daemon.json, still down: %v)", err, err2)
+		}
+		ctx.UI.Warn("Docker restart rejected the new daemon.json — previous config restored, Docker is up")
+		return nil
 	}
-	ctx.UI.Detail("daemon.json: live-restore, log rotate, no userland-proxy")
+	if swarm {
+		ctx.UI.Detail("daemon.json: log rotate · Swarm (no live-restore)")
+	} else {
+		ctx.UI.Detail("daemon.json: live-restore, log rotate")
+	}
 	return nil
+}
+
+func restoreDaemonJSON(prev []byte) error {
+	if len(prev) == 0 {
+		if sys.FileExists(dockerDaemon) {
+			return os.Remove(dockerDaemon)
+		}
+		return nil
+	}
+	return sys.WriteFile(dockerDaemon, prev, 0o644)
 }
 
 func (Docker) Status() Check {
@@ -73,6 +106,12 @@ func (Docker) Status() Check {
 	data, _ := os.ReadFile(dockerDaemon)
 	var m map[string]any
 	_ = json.Unmarshal(data, &m)
+	if sys.DockerSwarmActive() {
+		if live, _ := m["live-restore"].(bool); live {
+			return warn("docker", "live-restore is set on a Swarm node (can prevent dockerd from starting)", "remove live-restore from daemon.json")
+		}
+		return ok("docker", "daemon.json hardened · Swarm · no TCP socket")
+	}
 	if live, _ := m["live-restore"].(bool); !live {
 		return warn("docker", "daemon.json missing live-restore", "run: sudo sec --docker")
 	}

@@ -194,6 +194,18 @@ func DockerInstalled() bool {
 	return CommandExists("docker")
 }
 
+func DockerSwarmActive() bool {
+	if !DockerInstalled() {
+		return false
+	}
+	out, err := Run("docker", "info", "--format", "{{.Swarm.LocalNodeState}}")
+	if err != nil {
+		return false
+	}
+	state := strings.ToLower(strings.TrimSpace(out))
+	return state == "active" || state == "locked"
+}
+
 func PublicIP() string {
 	if out, err := Run("hostname", "-I"); err == nil {
 		fields := strings.Fields(out)
