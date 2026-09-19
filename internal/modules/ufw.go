@@ -28,7 +28,7 @@ func (UFW) Apply(ctx Context) error {
 		ctx.UI.Detail("would apt install ufw")
 		ctx.UI.Detail("would default deny incoming / allow outgoing")
 		ctx.UI.Detail(fmt.Sprintf("would allow %s/tcp, 80/tcp, 443/tcp", sshPort))
-		ctx.UI.Detail("would install ufw-docker so Docker-published ports respect UFW")
+		ctx.UI.Detail("would enable UFW, then install ufw-docker (install requires UFW to be active)")
 		return nil
 	}
 
@@ -47,15 +47,17 @@ func (UFW) Apply(ctx Context) error {
 	_ = sys.RunOK("ufw", "allow", "80/tcp")
 	_ = sys.RunOK("ufw", "allow", "443/tcp")
 
-	if err := installUfwDocker(ctx); err != nil {
-		ctx.UI.Detail("ufw-docker: " + err.Error())
-		return fmt.Errorf("ufw-docker: %w", err)
-	}
-
+	// ufw-docker install refuses to run while UFW is inactive.
 	if err := sys.RunOK("ufw", "--force", "enable"); err != nil {
 		return fmt.Errorf("enable ufw: %w", err)
 	}
 	ctx.UI.Detail("UFW active · SSH/" + sshPort + " · 80 · 443")
+
+	if err := installUfwDocker(ctx); err != nil {
+		ctx.UI.Detail("ufw-docker: " + err.Error())
+		ctx.UI.Warn("UFW is on, but ufw-docker could not install — Docker-published ports may still bypass UFW")
+		return nil
+	}
 	return nil
 }
 
