@@ -1,12 +1,13 @@
 package plan
 
 type Plan struct {
-	User         bool
-	Username     string
-	SSHPubKey    string
-	CopyRootKeys bool
-	NoPasswdSudo bool
-	PurgeUser    bool
+	User           bool
+	Username       string
+	SSHPubKey      string
+	CopyRootKeys   bool
+	NoPasswdSudo   bool
+	PurgeUser      bool
+	DisableRootSSH bool
 
 	UFW      bool
 	SSH      bool

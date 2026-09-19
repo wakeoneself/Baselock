@@ -31,7 +31,7 @@ sudo sec --yes
 
 ## What it does
 
-- 🔑 Creates a sudo operator and turns off **root SSH** (root account stays for console)
+- 🔑 Creates a sudo operator (no login password, passwordless sudo). Root SSH **keys stay** as break-glass
 - 🚪 Allows SSH keys only — password logins go away
 - 🛡️ UFW default-deny, plus [ufw-docker](https://github.com/chaifeng/ufw-docker) so Docker cannot bypass the firewall
 - 🔥 Fail2ban on SSH
@@ -48,7 +48,7 @@ sudo sec --yes
 ```text
 ┌  Baselock  ·  sec v0.1.0  ·  box.example.com  ·  Ubuntu 24.04
 │
-│  🔑  Create a sudo user and turn off root SSH?     Yes
+│  🔑  Create a sudo user (passwordless sudo)?       Yes
 │      Username                                      deploy
 │      Copy SSH keys from root?                      Yes
 │  🛡️  Firewall (SSH / 80 / 443 only)?               Yes
@@ -116,11 +116,12 @@ sudo sec apply --dry-run --yes
 
 | Flag | What it does |
 |---|---|
-| `--user` / `--no-user` | Sudo operator + `PermitRootLogin no` |
+| `--user` / `--no-user` | Sudo operator; root SSH keys stay unless `--disable-root-ssh` |
 | `--username` | Operator name (default `deploy`) |
 | `--ssh-pubkey` | Public key file for the operator |
 | `--copy-root-keys` | Copy `/root/.ssh/authorized_keys` |
 | `--nopasswd-sudo` | Passwordless sudo (default on — the operator has no login password) |
+| `--disable-root-ssh` | `PermitRootLogin no` (off by default — key-only VPS have no console password) |
 | `--ufw` / `--no-ufw` | Firewall + ufw-docker |
 | `--ssh` / `--no-ssh` | Disable password authentication |
 | `--fail2ban` / `--no-fail2ban` | SSH jail |
@@ -147,12 +148,13 @@ sudo sec revert --module user --purge-user
 ## Safety
 
 - Every apply writes a snapshot under `/var/lib/sec/backups/<timestamp>/`
-- Root SSH is **not** disabled until the operator has an `authorized_keys` file
-- The operator has **no login password** (SSH key only). `sudo` is passwordless so you are not locked out.
-- The `root` account is never deleted — VPS console login still works
+- Operator is SSH-key only with **passwordless sudo** (a sudo password would lock you out)
+- Root SSH stays `prohibit-password` (keys still work). Serial/VNC consoles need a password — Baselock never invents one
+- Bad `sshd` drop-ins are rolled back if `sshd -t` fails; after every step we check sshd is still listening
+- Docker `daemon.json` is written **without restarting dockerd** (Swarm/Dokploy)
+- `live-restore` is not set on Swarm — it prevents dockerd from starting
 - `--dry-run` is always safe
 - `sec revert` puts sshd, sudoers, UFW, Fail2ban, Docker, and Dokploy publish/Traefik back
-- Docker publishes ports around UFW; `sec` installs ufw-docker so those rules actually apply
 
 Non-interactive environments (pipe, cron) cannot run the wizard. Pass `--yes` or explicit module flags.
 

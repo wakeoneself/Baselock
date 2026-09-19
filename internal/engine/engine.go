@@ -74,7 +74,17 @@ func Apply(p plan.Plan, u *ui.UI) error {
 	for _, m := range mods {
 		title := stepTitle(m.Name())
 		if err := u.Step(title, func() error {
-			return m.Apply(ctx)
+			if err := m.Apply(ctx); err != nil {
+				return err
+			}
+			if p.DryRun {
+				return nil
+			}
+			if err := sys.EnsureSSHListening(); err != nil {
+				_ = sys.RunOK("systemctl", "start", "ssh")
+				return fmt.Errorf("sshd dropped after %s: %w", m.Name(), err)
+			}
+			return nil
 		}); err != nil {
 			failed = m.Name()
 			u.FailDetail(err.Error(), "step "+m.Name()+" stopped", "sec revert   (restores /var/lib/sec/backups)")
@@ -133,7 +143,7 @@ func Revert(p plan.Plan, u *ui.UI, module string) error {
 func stepTitle(name string) string {
 	switch name {
 	case "user":
-		return "Creating sudo operator and turning off root SSH"
+		return "Creating sudo operator (root SSH keys stay as break-glass)"
 	case "ssh":
 		return "Disabling password SSH"
 	case "ufw":
@@ -161,7 +171,11 @@ func printNext(p plan.Plan, u *ui.UI) {
 	if p.User {
 		lines = append(lines, fmt.Sprintf("ssh %s@%s", user, host))
 		lines = append(lines, user+" has no password — SSH key only, sudo does not ask")
-		lines = append(lines, "root SSH is closed — VPS console root still works")
+		if p.DisableRootSSH {
+			lines = append(lines, "root SSH is disabled — do not close this session until you confirm a second login")
+		} else {
+			lines = append(lines, "root SSH still accepts keys (break-glass). Serial console needs a password — we never set one.")
+		}
 	}
 	if p.Dokploy {
 		lines = append(lines, dokploy.TunnelHint(user)...)

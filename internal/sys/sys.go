@@ -139,19 +139,68 @@ func SSHConfigDropInSupported() bool {
 	return FileExists("/etc/ssh/sshd_config.d")
 }
 
+func sshdBinary() string {
+	if FileExists("/usr/sbin/sshd") {
+		return "/usr/sbin/sshd"
+	}
+	if path, err := exec.LookPath("sshd"); err == nil {
+		return path
+	}
+	return "/usr/sbin/sshd"
+}
+
+func TestSSHD() error {
+	return RunOK(sshdBinary(), "-t")
+}
+
 func ReloadSSH() error {
-	if err := RunOK("sshd", "-t"); err != nil {
-		if err2 := RunOK("ssh", "-t"); err2 != nil {
-			return err
-		}
+	if err := TestSSHD(); err != nil {
+		return fmt.Errorf("sshd config invalid (refusing to reload): %w", err)
 	}
 	if CommandExists("systemctl") {
 		if err := RunOK("systemctl", "reload", "ssh"); err == nil {
+			return EnsureSSHListening()
+		}
+		if err := RunOK("systemctl", "reload", "sshd"); err == nil {
+			return EnsureSSHListening()
+		}
+		// reload of a dead unit does nothing useful — start it
+		_ = RunOK("systemctl", "start", "ssh")
+		_ = RunOK("systemctl", "enable", "ssh")
+		return EnsureSSHListening()
+	}
+	_ = RunOK("service", "ssh", "reload")
+	return EnsureSSHListening()
+}
+
+func EnsureSSHListening() error {
+	if CommandExists("systemctl") {
+		out, err := Run("systemctl", "is-active", "ssh")
+		if err != nil || strings.TrimSpace(out) != "active" {
+			_ = RunOK("systemctl", "start", "ssh")
+			out, err = Run("systemctl", "is-active", "sshd")
+			if (err != nil || strings.TrimSpace(out) != "active") && FileExists("/lib/systemd/system/ssh.service") {
+				if err := RunOK("systemctl", "start", "ssh"); err != nil {
+					return fmt.Errorf("sshd is not active: %w", err)
+				}
+			}
+		}
+	}
+	port := DetectSSHPort()
+	if CommandExists("ss") {
+		out, err := Run("ss", "-lnt")
+		if err == nil && (strings.Contains(out, ":"+port) || strings.Contains(out, ":"+port+" ")) {
 			return nil
 		}
-		return RunOK("systemctl", "reload", "sshd")
 	}
-	return RunOK("service", "ssh", "reload")
+	// last resort: is-active ssh
+	if CommandExists("systemctl") {
+		out, err := Run("systemctl", "is-active", "ssh")
+		if err == nil && strings.TrimSpace(out) == "active" {
+			return nil
+		}
+	}
+	return fmt.Errorf("sshd does not appear to be listening on port %s", port)
 }
 
 func DetectSSHPort() string {

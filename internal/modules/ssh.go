@@ -40,22 +40,24 @@ func (SSH) Apply(ctx Context) error {
 		return nil
 	}
 
-	existing := ""
-	if data, err := os.ReadFile(sshDropIn); err == nil {
-		existing = string(data)
-	}
-	cfg := mergeSSHDropIn(existing, map[string]string{
-		"PubkeyAuthentication":         "yes",
-		"PasswordAuthentication":       "no",
-		"KbdInteractiveAuthentication": "no",
+	prev, _ := os.ReadFile(sshDropIn)
+	cfg := mergeSSHDropIn(string(prev), map[string]string{
+		"PubkeyAuthentication":   "yes",
+		"PasswordAuthentication": "no",
 	})
 	if err := sys.WriteFile(sshDropIn, []byte(cfg), 0o644); err != nil {
 		return err
 	}
+	if err := sys.TestSSHD(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		return fmt.Errorf("sshd rejected config, restored previous drop-in: %w", err)
+	}
 	if err := sys.ReloadSSH(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		_ = sys.ReloadSSH()
 		return fmt.Errorf("reload sshd: %w", err)
 	}
-	ctx.UI.Detail("PasswordAuthentication no")
+	ctx.UI.Detail("PasswordAuthentication no (root SSH with keys still works unless you pass --disable-root-ssh)")
 	return nil
 }
 

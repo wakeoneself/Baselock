@@ -61,21 +61,12 @@ func (Docker) Apply(ctx Context) error {
 	if err := sys.WriteFile(dockerDaemon, raw, 0o644); err != nil {
 		return err
 	}
-	if err := sys.RunOK("systemctl", "restart", "docker"); err != nil {
-		ctx.UI.Detail("docker restart failed — restoring previous daemon.json")
-		if restoreErr := restoreDaemonJSON(prev); restoreErr != nil {
-			return fmt.Errorf("restart docker: %w (also failed to restore daemon.json: %v)", err, restoreErr)
-		}
-		if err2 := sys.RunOK("systemctl", "restart", "docker"); err2 != nil {
-			return fmt.Errorf("restart docker: %w (restored daemon.json, still down: %v)", err, err2)
-		}
-		ctx.UI.Warn("Docker restart rejected the new daemon.json — previous config restored, Docker is up")
-		return nil
-	}
+	// Never restart dockerd here — on Dokploy/Swarm that can take down
+	// networking and leave sshd dead. File is picked up on the next reboot.
 	if swarm {
-		ctx.UI.Detail("daemon.json: log rotate · Swarm (no live-restore)")
+		ctx.UI.Detail("daemon.json: log rotate · Swarm (no live-restore) · no docker restart")
 	} else {
-		ctx.UI.Detail("daemon.json: live-restore, log rotate")
+		ctx.UI.Detail("daemon.json: live-restore, log rotate · no docker restart (reboot later)")
 	}
 	return nil
 }
@@ -143,8 +134,6 @@ func (Docker) Revert(ctx Context, snap *backup.Snapshot) error {
 	if err := snap.RestoreFile(dockerDaemon); err != nil {
 		return err
 	}
-	if sys.DockerInstalled() {
-		return sys.RunOK("systemctl", "restart", "docker")
-	}
+	ctx.UI.Detail("restored daemon.json — reboot later if dockerd should reload it")
 	return nil
 }

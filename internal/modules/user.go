@@ -53,7 +53,7 @@ func (m User) Apply(ctx Context) error {
 		ctx.UI.Detail("would create user " + username + " in sudo" + dockerSuffix())
 		ctx.UI.Detail("would install authorized_keys from " + keySrc)
 		ctx.UI.Detail("would write " + sudoers)
-		ctx.UI.Detail("would set PermitRootLogin no in " + sshDropIn)
+		ctx.UI.Detail("would set PermitRootLogin prohibit-password (root SSH keys stay as break-glass)")
 		return nil
 	}
 
@@ -109,16 +109,44 @@ func (m User) Apply(ctx Context) error {
 		return fmt.Errorf("sudo check failed for %s: %v", username, err)
 	}
 
-	dropIn := "PubkeyAuthentication yes\nPermitRootLogin no\n"
+	prev, _ := os.ReadFile(sshDropIn)
+	rootLogin := "prohibit-password"
+	if ctx.Plan.DisableRootSSH {
+		rootLogin = "no"
+	}
+	dropIn := mergeSSHDropIn(string(prev), map[string]string{
+		"PubkeyAuthentication": "yes",
+		"PermitRootLogin":      rootLogin,
+	})
 	if err := sys.WriteFile(sshDropIn, []byte(dropIn), 0o644); err != nil {
 		return err
 	}
+	if err := sys.TestSSHD(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		return fmt.Errorf("sshd rejected config, restored previous drop-in: %w", err)
+	}
 	if err := sys.ReloadSSH(); err != nil {
+		_ = restoreSSHDropIn(prev)
+		_ = sys.ReloadSSH()
 		return fmt.Errorf("reload sshd: %w", err)
 	}
-	ctx.UI.Detail("PermitRootLogin no — VPS console root still works")
+	if ctx.Plan.DisableRootSSH {
+		ctx.UI.Detail("PermitRootLogin no — keep a second SSH session open")
+	} else {
+		ctx.UI.Detail("PermitRootLogin prohibit-password — root SSH with keys still works (no console password needed)")
+	}
 	ctx.UI.Detail(username + " has no password; sudo is passwordless (SSH key is the login)")
 	return nil
+}
+
+func restoreSSHDropIn(prev []byte) error {
+	if len(prev) == 0 {
+		if sys.FileExists(sshDropIn) {
+			return os.Remove(sshDropIn)
+		}
+		return nil
+	}
+	return sys.WriteFile(sshDropIn, prev, 0o644)
 }
 
 func (m User) resolveKeys(ctx Context) (string, error) {
@@ -154,13 +182,13 @@ func (m User) Status() Check {
 		return fail("user", "no sudo operator user found", "run: sudo sec")
 	}
 	if !rootOff {
-		return warn("user", "sudo user exists, but root SSH is still allowed", "run: sudo sec --user")
+		return ok("user", "operator "+operators[0]+" · root SSH keys still work (break-glass)")
 	}
 	return ok("user", "operator "+operators[0]+" · root SSH disabled")
 }
 
 func permitRootClosed() bool {
-	if data, err := os.ReadFile(sshDropIn); err == nil && strings.Contains(string(data), "PermitRootLogin no") {
+	if data, err := os.ReadFile(sshDropIn); err == nil && strings.Contains(string(data), "PermitRootLogin no") && !strings.Contains(string(data), "prohibit-password") {
 		return true
 	}
 	if data, err := os.ReadFile("/etc/ssh/sshd_config"); err == nil {

@@ -3,11 +3,11 @@ package wizard
 import (
 	"fmt"
 
+	"github.com/charmbracelet/huh"
 	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
 	"github.com/wakeoneself/Baselock/internal/plan"
 	"github.com/wakeoneself/Baselock/internal/sys"
 	"github.com/wakeoneself/Baselock/internal/ui"
-	"github.com/charmbracelet/huh"
 )
 
 func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
@@ -54,8 +54,8 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 				Title("Recommended defaults").
 				Description("Press Enter to keep Yes on everything. You can turn pieces off."),
 			huh.NewConfirm().
-				Title("🔑  Create a sudo user and turn off root SSH?").
-				Description("Why: daily root SSH is the first thing scanners hit. The root account stays for VPS console.").
+				Title("🔑  Create a sudo user (passwordless sudo, SSH keys)?").
+				Description("Why: daily work as a non-root user. Root SSH with keys stays as break-glass — serial consoles need a password we never set.").
 				Value(&doUser).
 				Affirmative("Yes").
 				Negative("No"),
@@ -70,7 +70,7 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 				}),
 			huh.NewConfirm().
 				Title("Copy SSH keys from root onto that user?").
-				Description("Why: without a key, sec will refuse to disable root SSH.").
+				Description("Why: without a key, sec will refuse to lock password SSH.").
 				Value(&copyKeys).
 				Affirmative("Yes").
 				Negative("No"),

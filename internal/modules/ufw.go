@@ -74,8 +74,12 @@ func installUfwDocker(ctx Context) error {
 	if err := sys.RunOK(ufwDockerBin, "install"); err != nil {
 		return err
 	}
-	if sys.CommandExists("systemctl") {
-		_ = sys.RunOK("systemctl", "restart", "ufw")
+	// Re-assert SSH after ufw-docker rewrites after.rules. Reload, don't restart.
+	sshPort := sys.DetectSSHPort()
+	_ = sys.RunOK("ufw", "allow", sshPort+"/tcp")
+	_ = sys.RunOK("ufw", "reload")
+	if err := sys.EnsureSSHListening(); err != nil {
+		return fmt.Errorf("sshd not listening after ufw-docker: %w", err)
 	}
 	ctx.UI.Detail("installed " + ufwDockerBin)
 	return nil

@@ -59,6 +59,7 @@ func addGlobalFlags(cmd *cobra.Command, p *plan.Plan) {
 	cmd.PersistentFlags().StringVar(&p.SSHPubKey, "ssh-pubkey", "", "public key file for the operator")
 	cmd.PersistentFlags().BoolVar(&p.CopyRootKeys, "copy-root-keys", true, "copy /root/.ssh/authorized_keys")
 	cmd.PersistentFlags().BoolVar(&p.NoPasswdSudo, "nopasswd-sudo", true, "passwordless sudo (default: on — the operator has no login password)")
+	cmd.PersistentFlags().BoolVar(&p.DisableRootSSH, "disable-root-ssh", false, "set PermitRootLogin no (default: keep root SSH keys as break-glass)")
 	cmd.PersistentFlags().BoolVar(&p.PurgeUser, "purge-user", false, "on revert, delete the operator user")
 	cmd.PersistentFlags().StringVar(&p.WebhookHost, "webhook-host", "", "public host for Dokploy git webhooks")
 	cmd.PersistentFlags().StringVar(&p.Profile, "profile", "", "baseline = recommended module set")
