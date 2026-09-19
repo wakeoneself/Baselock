@@ -256,21 +256,31 @@ func (Addon) Status() modules.Check {
 	if !Detected() {
 		return modules.Check{Name: "dokploy", Level: "SKIP", Reason: "Dokploy not installed"}
 	}
-	public, loop := port3000View()
-	if public {
+	binds := listenBinds(defaultUIPort)
+	local := listenLocal3000() || bindsLoopbackOnly(binds) || bindsLocalhost(binds)
+	exposed := bindsAllInterfaces(binds)
+
+	if exposed && !ufwDeniesPort(defaultUIPort) {
 		return modules.Check{
 			Name:   "dokploy",
 			Level:  "FAIL",
-			Reason: "UI port 3000 is reachable on a public address",
+			Reason: "UI listens on 0.0.0.0:3000 and UFW does not deny it",
 			Next:   "run: sudo sec addon dokploy lock",
 		}
 	}
-	if !loop {
+	if !local {
 		return modules.Check{
 			Name:   "dokploy",
 			Level:  "WARN",
-			Reason: "port 3000 is not on loopback — tunnel may fail",
+			Reason: "port 3000 is not reachable on 127.0.0.1 — tunnel may fail",
 			Next:   "run: sudo sec addon dokploy lock",
+		}
+	}
+	if exposed {
+		return modules.Check{
+			Name:   "dokploy",
+			Level:  "OK",
+			Reason: "UI on localhost · UFW denies public :3000 · webhooks on 80/443",
 		}
 	}
 	return modules.Check{
@@ -280,31 +290,80 @@ func (Addon) Status() modules.Check {
 	}
 }
 
-func port3000View() (public bool, loopback bool) {
-	addrs, err := net.InterfaceAddrs()
+func listenBinds(port string) []string {
+	out, err := sys.Run("ss", "-lnt")
 	if err != nil {
-		return false, listenLocal3000()
+		out, err = sys.Run("ss", "-lntn")
 	}
-	publicIPs := map[string]bool{}
-	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok || ipnet.IP.IsLoopback() {
+	if err != nil {
+		return nil
+	}
+	return parseListenBinds(out, port)
+}
+
+func parseListenBinds(ssOut, port string) []string {
+	var binds []string
+	suffix := ":" + port
+	for _, line := range strings.Split(ssOut, "\n") {
+		if !strings.Contains(strings.ToUpper(line), "LISTEN") {
 			continue
 		}
-		if ip4 := ipnet.IP.To4(); ip4 != nil {
-			publicIPs[ip4.String()] = true
+		fields := strings.Fields(line)
+		for _, f := range fields {
+			if strings.HasSuffix(f, suffix) || strings.HasSuffix(f, "]:"+port) {
+				binds = append(binds, f)
+			}
 		}
 	}
-	loopback = listenLocal3000()
-	for ip := range publicIPs {
-		c, err := net.DialTimeout("tcp", net.JoinHostPort(ip, defaultUIPort), 400*time.Millisecond)
-		if err == nil {
-			_ = c.Close()
-			public = true
-			break
+	return binds
+}
+
+func bindsAllInterfaces(binds []string) bool {
+	for _, b := range binds {
+		if strings.HasPrefix(b, "0.0.0.0:") || strings.HasPrefix(b, "*:") ||
+			strings.HasPrefix(b, "[::]:") || strings.HasPrefix(b, ":::") {
+			return true
 		}
 	}
-	return public, loopback
+	return false
+}
+
+func bindsLoopbackOnly(binds []string) bool {
+	if len(binds) == 0 {
+		return false
+	}
+	for _, b := range binds {
+		if !strings.Contains(b, "127.0.0.1") && !strings.Contains(b, "[::1]") {
+			return false
+		}
+	}
+	return true
+}
+
+func bindsLocalhost(binds []string) bool {
+	for _, b := range binds {
+		if strings.Contains(b, "127.0.0.1") || strings.Contains(b, "[::1]") {
+			return true
+		}
+	}
+	return false
+}
+
+func ufwDeniesPort(port string) bool {
+	out, err := sys.Run("ufw", "status")
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(out, "\n") {
+		low := strings.ToLower(line)
+		if !strings.Contains(low, port) {
+			continue
+		}
+		if strings.Contains(low, "deny") || strings.Contains(low, "reject") {
+			return true
+		}
+	}
+	return false
 }
 
 func listenLocal3000() bool {

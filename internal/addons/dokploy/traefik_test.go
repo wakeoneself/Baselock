@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+func TestParseListenBinds(t *testing.T) {
+	out := `State Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0 4096 0.0.0.0:3000 0.0.0.0:*
+LISTEN 0 4096 127.0.0.1:22 0.0.0.0:*
+`
+	binds := parseListenBinds(out, "3000")
+	if len(binds) != 1 || binds[0] != "0.0.0.0:3000" {
+		t.Fatalf("binds = %#v", binds)
+	}
+	if !bindsAllInterfaces(binds) {
+		t.Fatal("expected all-interfaces")
+	}
+}
+
 func TestRestrictRuleKeepsHost(t *testing.T) {
 	got := RestrictRule("Host(`dokploy.example.com`)")
 	if !strings.Contains(got, "Host(`dokploy.example.com`)") {
