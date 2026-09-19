@@ -1,5 +1,8 @@
 # Baselock
 
+> [!CAUTION]
+> **This repository is under active development and testing.** It can lock you out of SSH, break Docker/Dokploy, or take down public sites. Use it only on machines you can rebuild. **You use it at your own risk.** We are not responsible for downtime, data loss, or a dead VPS.
+
 **Harden an Ubuntu/Debian box in one command.**
 
 The CLI binary is `sec`.
