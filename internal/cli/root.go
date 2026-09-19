@@ -122,6 +122,18 @@ func newStatusCmd(p *plan.Plan) *cobra.Command {
 		Use:   "status",
 		Short: "Show what is locked down and what is still open",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !sys.IsRoot() {
+				secArgs := []string{"status"}
+				if p.Plain {
+					secArgs = append(secArgs, "--plain")
+				}
+				if p.Quiet {
+					secArgs = append(secArgs, "--quiet")
+				}
+				if err := sys.ExecSudoN(secArgs...); err == nil {
+					return nil
+				}
+			}
 			u := newUI(p)
 			host := sys.HostInfo()
 			u.Banner(Version, host.Hostname, host.OSName, false)

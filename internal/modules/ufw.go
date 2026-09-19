@@ -92,8 +92,11 @@ func (UFW) Status() Check {
 	if !sys.CommandExists("ufw") {
 		return fail("ufw", "ufw is not installed", "run: sudo sec --ufw")
 	}
-	out, err := sys.Run("ufw", "status")
+	out, err := sys.RunPrivileged("ufw", "status")
 	if err != nil {
+		if !sys.IsRoot() {
+			return warn("ufw", "needs root to read UFW", "run: sudo sec status")
+		}
 		return fail("ufw", err.Error(), "run: sudo sec --ufw")
 	}
 	active := strings.Contains(strings.ToLower(out), "status: active")

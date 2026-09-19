@@ -59,6 +59,38 @@ func RequireRoot() error {
 	return nil
 }
 
+func CurrentUsername() string {
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return u.Username
+}
+
+// RunPrivileged runs the command as root, using sudo -n when we are not root.
+func RunPrivileged(name string, args ...string) (string, error) {
+	if IsRoot() {
+		return Run(name, args...)
+	}
+	return Run("sudo", append([]string{"-n", name}, args...)...)
+}
+
+// ExecSudoN re-runs this binary via passwordless sudo. Used by status.
+func ExecSudoN(secArgs ...string) error {
+	if IsRoot() {
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("sudo", append([]string{"-n", exe}, secArgs...)...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func RequireDebian() error {
 	h := HostInfo()
 	if !h.Debian {

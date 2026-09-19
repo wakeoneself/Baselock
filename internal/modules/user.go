@@ -179,6 +179,9 @@ func (m User) Status() Check {
 	rootOff := permitRootClosed()
 	operators := findOperators()
 	if len(operators) == 0 {
+		if me := sys.CurrentUsername(); me != "" && me != "root" {
+			return ok("user", "logged in as "+me+" · run sudo sec status for the full check")
+		}
 		return fail("user", "no sudo operator user found", "run: sudo sec")
 	}
 	if !rootOff {

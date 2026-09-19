@@ -260,12 +260,21 @@ func (Addon) Status() modules.Check {
 	local := listenLocal3000() || bindsLoopbackOnly(binds) || bindsLocalhost(binds)
 	exposed := bindsAllInterfaces(binds)
 
-	if exposed && !ufwDeniesPort(defaultUIPort) {
+	denied, ufwKnown := ufwDeniesPort(defaultUIPort)
+	if exposed && ufwKnown && !denied {
 		return modules.Check{
 			Name:   "dokploy",
 			Level:  "FAIL",
 			Reason: "UI listens on 0.0.0.0:3000 and UFW does not deny it",
 			Next:   "run: sudo sec addon dokploy lock",
+		}
+	}
+	if exposed && !ufwKnown {
+		return modules.Check{
+			Name:   "dokploy",
+			Level:  "WARN",
+			Reason: "UI listens on 0.0.0.0:3000 — cannot read UFW without root",
+			Next:   "run: sudo sec status",
 		}
 	}
 	if !local {
@@ -349,10 +358,10 @@ func bindsLocalhost(binds []string) bool {
 	return false
 }
 
-func ufwDeniesPort(port string) bool {
-	out, err := sys.Run("ufw", "status")
+func ufwDeniesPort(port string) (denied bool, known bool) {
+	out, err := sys.RunPrivileged("ufw", "status")
 	if err != nil {
-		return false
+		return false, false
 	}
 	for _, line := range strings.Split(out, "\n") {
 		low := strings.ToLower(line)
@@ -360,10 +369,10 @@ func ufwDeniesPort(port string) bool {
 			continue
 		}
 		if strings.Contains(low, "deny") || strings.Contains(low, "reject") {
-			return true
+			return true, true
 		}
 	}
-	return false
+	return false, true
 }
 
 func listenLocal3000() bool {
