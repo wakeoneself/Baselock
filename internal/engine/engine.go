@@ -160,6 +160,7 @@ func printNext(p plan.Plan, u *ui.UI) {
 	var lines []string
 	if p.User {
 		lines = append(lines, fmt.Sprintf("ssh %s@%s", user, host))
+		lines = append(lines, user+" has no password — SSH key only, sudo does not ask")
 		lines = append(lines, "root SSH is closed — VPS console root still works")
 	}
 	if p.Dokploy {

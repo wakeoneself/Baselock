@@ -95,10 +95,9 @@ func (m User) Apply(ctx Context) error {
 		return fmt.Errorf("no usable SSH public key in %s — refusing to disable root SSH", auth)
 	}
 
-	sudoLine := username + " ALL=(ALL) ALL\n"
-	if ctx.Plan.NoPasswdSudo {
-		sudoLine = username + " ALL=(ALL) NOPASSWD:ALL\n"
-	}
+	// Key-only account (--disabled-password): there is no login password to
+	// type at sudo, so NOPASSWD is the only setup that works.
+	sudoLine := username + " ALL=(ALL) NOPASSWD:ALL\n"
 	if err := sys.WriteFile(sudoers, []byte(sudoLine), 0o440); err != nil {
 		return err
 	}
@@ -118,6 +117,7 @@ func (m User) Apply(ctx Context) error {
 		return fmt.Errorf("reload sshd: %w", err)
 	}
 	ctx.UI.Detail("PermitRootLogin no — VPS console root still works")
+	ctx.UI.Detail(username + " has no password; sudo is passwordless (SSH key is the login)")
 	return nil
 }
 

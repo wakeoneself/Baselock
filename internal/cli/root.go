@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/wakeoneself/Baselock/internal/addons/dokploy"
 	"github.com/wakeoneself/Baselock/internal/engine"
 	"github.com/wakeoneself/Baselock/internal/plan"
 	"github.com/wakeoneself/Baselock/internal/sys"
 	"github.com/wakeoneself/Baselock/internal/ui"
 	"github.com/wakeoneself/Baselock/internal/wizard"
-	"github.com/spf13/cobra"
 )
 
 // Version is set via -ldflags.
@@ -58,7 +58,7 @@ func addGlobalFlags(cmd *cobra.Command, p *plan.Plan) {
 	cmd.PersistentFlags().StringVar(&p.Username, "username", "deploy", "operator username")
 	cmd.PersistentFlags().StringVar(&p.SSHPubKey, "ssh-pubkey", "", "public key file for the operator")
 	cmd.PersistentFlags().BoolVar(&p.CopyRootKeys, "copy-root-keys", true, "copy /root/.ssh/authorized_keys")
-	cmd.PersistentFlags().BoolVar(&p.NoPasswdSudo, "nopasswd-sudo", false, "passwordless sudo (off unless asked)")
+	cmd.PersistentFlags().BoolVar(&p.NoPasswdSudo, "nopasswd-sudo", true, "passwordless sudo (default: on — the operator has no login password)")
 	cmd.PersistentFlags().BoolVar(&p.PurgeUser, "purge-user", false, "on revert, delete the operator user")
 	cmd.PersistentFlags().StringVar(&p.WebhookHost, "webhook-host", "", "public host for Dokploy git webhooks")
 	cmd.PersistentFlags().StringVar(&p.Profile, "profile", "", "baseline = recommended module set")

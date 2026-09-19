@@ -120,7 +120,7 @@ sudo sec apply --dry-run --yes
 | `--username` | Operator name (default `deploy`) |
 | `--ssh-pubkey` | Public key file for the operator |
 | `--copy-root-keys` | Copy `/root/.ssh/authorized_keys` |
-| `--nopasswd-sudo` | Passwordless sudo (off unless you ask) |
+| `--nopasswd-sudo` | Passwordless sudo (default on — the operator has no login password) |
 | `--ufw` / `--no-ufw` | Firewall + ufw-docker |
 | `--ssh` / `--no-ssh` | Disable password authentication |
 | `--fail2ban` / `--no-fail2ban` | SSH jail |
@@ -148,6 +148,7 @@ sudo sec revert --module user --purge-user
 
 - Every apply writes a snapshot under `/var/lib/sec/backups/<timestamp>/`
 - Root SSH is **not** disabled until the operator has an `authorized_keys` file
+- The operator has **no login password** (SSH key only). `sudo` is passwordless so you are not locked out.
 - The `root` account is never deleted — VPS console login still works
 - `--dry-run` is always safe
 - `sec revert` puts sshd, sudoers, UFW, Fail2ban, Docker, and Dokploy publish/Traefik back
