@@ -138,7 +138,7 @@ sudo sec apply --dry-run --yes
 | `--quiet` | Result and errors only |
 
 ```bash
-sudo sec status
+sudo sec status              # includes the Dokploy SSH tunnel when Dokploy is installed
 sudo sec ssh root-on          # allow root SSH with keys again
 sudo sec ssh root-off         # PermitRootLogin no
 sudo sec revert

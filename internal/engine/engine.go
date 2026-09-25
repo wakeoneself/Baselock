@@ -106,6 +106,9 @@ func Status(u *ui.UI) {
 		rows = append(rows, ui.Row{Name: c.Name, Level: c.Level, Reason: c.Reason, Next: c.Next})
 	}
 	u.Table(rows)
+	if dokploy.Detected() {
+		u.PlanBox("Dokploy tunnel", dokploy.TunnelHint(dokploy.OperatorName()))
+	}
 }
 
 func Revert(p plan.Plan, u *ui.UI, module string) error {

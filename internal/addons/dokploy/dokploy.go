@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -391,6 +393,20 @@ func listenLocal3000() bool {
 	}
 	_ = c.Close()
 	return true
+}
+
+func OperatorName() string {
+	if u := os.Getenv("SUDO_USER"); u != "" && u != "root" {
+		return u
+	}
+	matches, _ := filepath.Glob("/etc/sudoers.d/sec-*")
+	if len(matches) > 0 {
+		return strings.TrimPrefix(filepath.Base(matches[0]), "sec-")
+	}
+	if me := sys.CurrentUsername(); me != "" && me != "root" {
+		return me
+	}
+	return "deploy"
 }
 
 func TunnelHint(username string) []string {
