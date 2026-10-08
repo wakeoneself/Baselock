@@ -130,10 +130,6 @@ func Unlock(ctx modules.Context, snap *backup.Snapshot) error {
 	if spec, err := snap.Note("dokploy-service.json"); err == nil && len(spec) > 0 {
 		if err := restorePublishFromInspect(spec); err != nil {
 			ctx.UI.Detail("publish restore: " + err.Error())
-			_ = sys.RunOK("docker", "service", "update",
-				"--publish-rm", "published=3000,target=3000,mode=host",
-				"--publish-add", "published=3000,target=3000,mode=host",
-				serviceName)
 		}
 	}
 	for path := range snap.Files {
@@ -145,9 +141,19 @@ func Unlock(ctx modules.Context, snap *backup.Snapshot) error {
 		}
 	}
 	if sys.CommandExists("ufw") {
-		_ = sys.RunOK("ufw", "delete", "deny", "3000/tcp")
+		allowPublic3000()
+		ctx.UI.Detail("UFW + ufw-docker allow public tcp/3000 — panel on http://" + sys.PublicIP() + ":3000")
 	}
 	return nil
+}
+
+// allowPublic3000 is the exact inverse of denyPublic3000. With ufw-docker,
+// removing the deny is not enough: published ports are dropped in FORWARD
+// unless a route rule allows them.
+func allowPublic3000() {
+	_ = sys.RunOK("ufw", "delete", "deny", "3000/tcp")
+	_ = sys.RunOK("ufw", "allow", "3000/tcp")
+	_ = sys.RunOK("ufw", "route", "allow", "proto", "tcp", "from", "any", "to", "any", "port", "3000")
 }
 
 func (Addon) Revert(ctx modules.Context, snap *backup.Snapshot) error {
@@ -158,30 +164,52 @@ func rebindLoopback(u *ui.UI) error {
 	if !sys.CommandExists("docker") {
 		return fmt.Errorf("docker not found")
 	}
-	// Official removal of the public host publish.
-	_ = sys.RunOK("docker", "service", "update",
-		"--publish-rm", "published=3000,target=3000,mode=host",
-		serviceName)
-
-	// Prefer a loopback mapping so `ssh -L 3000:127.0.0.1:3000` works.
+	// Swarm cannot publish on 127.0.0.1. Host mode keeps the port off the
+	// routing mesh, so UFW/ufw-docker can block it while the SSH tunnel
+	// (local traffic) still reaches it. Every service update restarts the
+	// panel, so only touch it when it is not host mode already.
+	if publish3000Mode() == "host" {
+		u.Detail("Dokploy UI already published in host mode — no restart needed")
+		return nil
+	}
+	u.Detail("switching Dokploy :3000 to host-mode publish (panel restarts, ~1 min)")
 	if err := sys.RunOK("docker", "service", "update",
-		"--publish-add", "127.0.0.1:3000:3000",
+		"--publish-rm", "3000",
+		"--publish-add", "published=3000,target=3000,mode=host",
 		serviceName); err != nil {
-		u.Detail("ingress 127.0.0.1:3000 failed, trying host-mode publish + firewall")
-		if err2 := sys.RunOK("docker", "service", "update",
-			"--publish-add", "published=3000,target=3000,mode=host",
-			serviceName); err2 != nil {
-			return fmt.Errorf("rebind port 3000: %v / %v", err, err2)
+		return fmt.Errorf("rebind port 3000: %w", err)
+	}
+	return nil
+}
+
+// publish3000Mode returns the publish mode of port 3000 ("host", "ingress")
+// or "" if the service does not publish it.
+func publish3000Mode() string {
+	out, err := sys.Run("docker", "service", "inspect", serviceName, "--format", "{{json .Spec.EndpointSpec.Ports}}")
+	if err != nil {
+		return ""
+	}
+	var ports []struct {
+		PublishedPort int    `json:"PublishedPort"`
+		PublishMode   string `json:"PublishMode"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &ports) != nil {
+		return ""
+	}
+	for _, p := range ports {
+		if p.PublishedPort == 3000 {
+			return orDefault(p.PublishMode, "ingress")
 		}
 	}
-	u.Detail("Dokploy UI published on 127.0.0.1:3000 (or host 3000 behind UFW)")
-	return nil
+	return ""
 }
 
 func denyPublic3000(u *ui.UI) error {
 	if !sys.CommandExists("ufw") {
 		return fmt.Errorf("ufw not installed")
 	}
+	_ = sys.RunOK("ufw", "delete", "allow", "3000/tcp")
+	_ = sys.RunOK("ufw", "route", "delete", "allow", "proto", "tcp", "from", "any", "to", "any", "port", "3000")
 	_ = sys.RunOK("ufw", "deny", "3000/tcp")
 	if sys.FileExists("/usr/local/bin/ufw-docker") {
 		_ = sys.RunOK("/usr/local/bin/ufw-docker", "deny", serviceName, "3000")
@@ -230,30 +258,24 @@ func restorePublishFromInspect(raw []byte) error {
 	if len(ports) == 0 {
 		ports = inspect[0].Endpoint.Ports
 	}
-	args := []string{"service", "update"}
-	_ = sys.RunOK("docker", "service", "update",
-		"--publish-rm", "published=3000,target=3000,mode=host",
-		"--publish-rm", "3000",
-		serviceName)
+	want := "host"
+	spec := "published=3000,target=3000,mode=host"
 	for _, p := range ports {
 		if p.TargetPort != 3000 && p.PublishedPort != 3000 {
 			continue
 		}
-		mode := p.PublishMode
-		if mode == "" {
-			mode = "host"
-		}
-		spec := fmt.Sprintf("published=%d,target=%d,mode=%s,protocol=%s",
-			p.PublishedPort, p.TargetPort, mode, orDefault(p.Protocol, "tcp"))
-		args = append(args, "--publish-add", spec)
+		want = orDefault(p.PublishMode, "ingress")
+		spec = fmt.Sprintf("published=%d,target=%d,mode=%s,protocol=%s",
+			p.PublishedPort, p.TargetPort, want, orDefault(p.Protocol, "tcp"))
+		break
 	}
-	if len(args) == 2 {
-		return sys.RunOK("docker", "service", "update",
-			"--publish-add", "published=3000,target=3000,mode=host",
-			serviceName)
+	if publish3000Mode() == want {
+		return nil
 	}
-	args = append(args, serviceName)
-	return sys.RunOK("docker", args...)
+	return sys.RunOK("docker", "service", "update",
+		"--publish-rm", "3000",
+		"--publish-add", spec,
+		serviceName)
 }
 
 func orDefault(s, d string) string {
