@@ -120,9 +120,9 @@ sudo sec apply --dry-run --yes
 | Flag | What it does |
 |---|---|
 | `--user` / `--no-user` | Sudo operator; root SSH keys stay unless `--disable-root-ssh` |
-| `--username` | Operator name (default `deploy`) |
-| `--ssh-pubkey` | Public key file for the operator |
-| `--copy-root-keys` | Copy `/root/.ssh/authorized_keys` |
+| `--username` | Operator name. Default: auto-detect — the user you ran `sudo` from (e.g. `ubuntu` on cloud images), else an existing sudo user with SSH keys, else a new `deploy` |
+| `--ssh-pubkey` | Extra public key file for the operator |
+| `--copy-root-keys` | Also append root's keys the operator does not have yet (existing keys are never replaced) |
 | `--nopasswd-sudo` | Passwordless sudo (default on — the operator has no login password) |
 | `--disable-root-ssh` | `PermitRootLogin no` (off by default — key-only VPS have no console password) |
 | `--ufw` / `--no-ufw` | Firewall + ufw-docker |

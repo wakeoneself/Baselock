@@ -168,12 +168,14 @@ func printNext(p plan.Plan, u *ui.UI) {
 	host := sys.PublicIP()
 	user := p.Username
 	if user == "" {
-		user = "deploy"
+		user = sys.DetectOperator()
 	}
 	var lines []string
 	if p.User {
 		lines = append(lines, fmt.Sprintf("ssh %s@%s", user, host))
-		lines = append(lines, user+" has no password — SSH key only, sudo does not ask")
+		if !sys.HasPassword(user) {
+			lines = append(lines, user+" has no password — SSH key only, sudo does not ask")
+		}
 		if p.DisableRootSSH {
 			lines = append(lines, "root SSH is disabled — do not close this session until you confirm a second login")
 		} else {

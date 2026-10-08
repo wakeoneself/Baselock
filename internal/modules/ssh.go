@@ -54,7 +54,7 @@ func (SSH) Apply(ctx Context) error {
 
 	username := ctx.Plan.Username
 	if username == "" {
-		username = "deploy"
+		username = sys.DetectOperator()
 	}
 	auth := "/home/" + username + "/.ssh/authorized_keys"
 	if home, err := sys.HomeDir(username); err == nil {

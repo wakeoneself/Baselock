@@ -3,6 +3,7 @@ package plan
 type Plan struct {
 	User           bool
 	Username       string
+	ExistingUser   bool
 	SSHPubKey      string
 	CopyRootKeys   bool
 	NoPasswdSudo   bool
@@ -30,7 +31,6 @@ type Plan struct {
 func Recommended() Plan {
 	return Plan{
 		User:         true,
-		Username:     "deploy",
 		CopyRootKeys: true,
 		UFW:          true,
 		SSH:          true,
@@ -52,7 +52,11 @@ func (p Plan) Lines() []string {
 	}
 	userLine := "user: off"
 	if p.User {
-		userLine = "user: on  (" + p.Username + ")"
+		kind := "new"
+		if p.ExistingUser {
+			kind = "existing"
+		}
+		userLine = "user: on  (" + p.Username + ", " + kind + ")"
 	}
 	lines = append(lines, userLine)
 	on(p.SSH, "ssh")

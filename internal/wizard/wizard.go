@@ -41,6 +41,13 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 	doDokploy := dokployPresent
 	copyKeys := true
 	username := p.Username
+	if username == "" {
+		username = sys.DetectOperator()
+	}
+	userHint := "New account " + username + " will be created (no password, SSH keys only)."
+	if sys.UserExists(username) {
+		userHint = "Detected existing user " + username + " — sec reuses it and keeps its SSH keys. Type another name to create a new user."
+	}
 	webhook := p.WebhookHost
 
 	theme := huh.ThemeCharm()
@@ -61,6 +68,7 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 				Negative("No"),
 			huh.NewInput().
 				Title("Operator username").
+				Description(userHint).
 				Value(&username).
 				Validate(func(s string) error {
 					if s == "" || s == "root" {
@@ -69,8 +77,8 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 					return nil
 				}),
 			huh.NewConfirm().
-				Title("Copy SSH keys from root onto that user?").
-				Description("Why: without a key, sec will refuse to lock password SSH.").
+				Title("Also add root's SSH keys to that user?").
+				Description("Only keys it does not have yet are appended — existing keys are never replaced.").
 				Value(&copyKeys).
 				Affirmative("Yes").
 				Negative("No"),
@@ -147,6 +155,7 @@ func Run(base plan.Plan, u *ui.UI) (plan.Plan, error) {
 
 	p.User = doUser
 	p.Username = username
+	p.ExistingUser = sys.UserExists(username)
 	p.CopyRootKeys = copyKeys
 	p.UFW = doUFW
 	p.SSH = doSSH

@@ -403,10 +403,7 @@ func OperatorName() string {
 	if len(matches) > 0 {
 		return strings.TrimPrefix(filepath.Base(matches[0]), "sec-")
 	}
-	if me := sys.CurrentUsername(); me != "" && me != "root" {
-		return me
-	}
-	return "deploy"
+	return sys.DetectOperator()
 }
 
 func TunnelHint(username string) []string {

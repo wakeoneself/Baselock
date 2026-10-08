@@ -18,7 +18,7 @@ import (
 var Version = "0.1.0"
 
 func New() *cobra.Command {
-	p := plan.Plan{Verbose: true, Username: "deploy", CopyRootKeys: true}
+	p := plan.Plan{Verbose: true, CopyRootKeys: true}
 
 	root := &cobra.Command{
 		Use:           "sec",
@@ -57,9 +57,9 @@ func addGlobalFlags(cmd *cobra.Command, p *plan.Plan) {
 	cmd.PersistentFlags().BoolVar(&p.Plain, "plain", false, "no color, no emoji")
 	cmd.PersistentFlags().BoolVar(&p.Quiet, "quiet", false, "result and errors only")
 	cmd.PersistentFlags().BoolVar(&p.Verbose, "verbose", true, "show file paths and why each step is safe")
-	cmd.PersistentFlags().StringVar(&p.Username, "username", "deploy", "operator username")
-	cmd.PersistentFlags().StringVar(&p.SSHPubKey, "ssh-pubkey", "", "public key file for the operator")
-	cmd.PersistentFlags().BoolVar(&p.CopyRootKeys, "copy-root-keys", true, "copy /root/.ssh/authorized_keys")
+	cmd.PersistentFlags().StringVar(&p.Username, "username", "", "operator username (default: auto-detect — the user you sudo from, an existing sudo user with keys, else deploy)")
+	cmd.PersistentFlags().StringVar(&p.SSHPubKey, "ssh-pubkey", "", "extra public key file for the operator")
+	cmd.PersistentFlags().BoolVar(&p.CopyRootKeys, "copy-root-keys", true, "also add root's keys the operator does not have yet")
 	cmd.PersistentFlags().BoolVar(&p.NoPasswdSudo, "nopasswd-sudo", true, "passwordless sudo (default: on — the operator has no login password)")
 	cmd.PersistentFlags().BoolVar(&p.DisableRootSSH, "disable-root-ssh", false, "set PermitRootLogin no (default: keep root SSH keys as break-glass)")
 	cmd.PersistentFlags().BoolVar(&p.PurgeUser, "purge-user", false, "on revert, delete the operator user")
@@ -290,6 +290,7 @@ func runSetup(cmd *cobra.Command, p *plan.Plan) error {
 		}
 	}
 	applyNoFlags(cmd, p)
+	resolveOperator(p)
 
 	u.PlanBox("Plan", p.Lines())
 	if !p.Yes && !p.DryRun {
@@ -313,6 +314,7 @@ func runApply(p *plan.Plan) error {
 			return err
 		}
 	}
+	resolveOperator(p)
 	u := newUI(p)
 	host := sys.HostInfo()
 	u.Banner(Version, host.Hostname, host.OSName, p.DryRun)
@@ -337,12 +339,17 @@ func fillRecommended(p *plan.Plan) {
 	p.Fail2ban = r.Fail2ban
 	p.Updates = r.Updates
 	p.Docker = sys.DockerInstalled()
-	if p.Username == "" {
-		p.Username = r.Username
-	}
+	resolveOperator(p)
 	if dokploy.Detected() {
 		p.Dokploy = true
 	}
+}
+
+func resolveOperator(p *plan.Plan) {
+	if p.Username == "" {
+		p.Username = sys.DetectOperator()
+	}
+	p.ExistingUser = sys.UserExists(p.Username)
 }
 
 func applyNoFlags(cmd *cobra.Command, p *plan.Plan) {

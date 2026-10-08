@@ -255,20 +255,7 @@ func DetectSSHPort() string {
 }
 
 func HasAuthorizedKeys(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if strings.HasPrefix(line, "ssh-") || strings.HasPrefix(line, "ecdsa-") {
-			return true
-		}
-	}
-	return false
+	return len(AuthorizedKeys(path)) > 0
 }
 
 func DockerInstalled() bool {
