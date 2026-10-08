@@ -178,7 +178,7 @@ Build from this repo:
 ```bash
 git clone https://github.com/wakeoneself/Baselock.git
 cd Baselock
-go build -o sec ./cmd/sec
+CGO_ENABLED=0 go build -o sec ./cmd/sec
 sudo ./install.sh
 ```
 

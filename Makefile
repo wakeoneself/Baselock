@@ -4,7 +4,7 @@ LDFLAGS := -s -w -X github.com/wakeoneself/Baselock/internal/cli.Version=$(VERSI
 .PHONY: build test install clean
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o bin/sec ./cmd/sec
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/sec ./cmd/sec
 
 test:
 	go test ./...

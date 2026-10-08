@@ -48,11 +48,19 @@ detect_asset() {
   echo "${NAME}-${os}-${arch}"
 }
 
+# Callers run inside `if`, where `set -e` is off — every failure must return explicitly.
 build_in() {
   local dir="$1"
   cyan "Building sec with Go $(go version | awk '{print $3}')…"
-  (cd "$dir" && go build -ldflags "-s -w -X github.com/wakeoneself/Baselock/internal/cli.Version=0.1.0" -o "${BIN_DIR}/${NAME}" ./cmd/sec)
-  chmod 0755 "${BIN_DIR}/${NAME}"
+  # sec is pure Go; CGO_ENABLED=0 avoids needing gcc and libc headers.
+  if ! (cd "$dir" && CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/wakeoneself/Baselock/internal/cli.Version=0.1.0" -o "${BIN_DIR}/${NAME}" ./cmd/sec); then
+    red "go build failed."
+    return 1
+  fi
+  if [[ ! -x "${BIN_DIR}/${NAME}" ]]; then
+    chmod 0755 "${BIN_DIR}/${NAME}" 2>/dev/null || { red "build produced no ${BIN_DIR}/${NAME}"; return 1; }
+  fi
+  "${BIN_DIR}/${NAME}" version >/dev/null 2>&1 || { red "${BIN_DIR}/${NAME} does not run"; return 1; }
 }
 
 install_from_repo() {
@@ -62,7 +70,7 @@ install_from_repo() {
   fi
   if [[ -n "$here" && -f "${here}/go.mod" && -d "${here}/cmd/sec" ]]; then
     need_go
-    build_in "$here"
+    build_in "$here" || return 1
     return 0
   fi
   return 1
@@ -79,8 +87,9 @@ install_from_release() {
   else
     wget -qO "$tmp" "$url" || { rm -f "$tmp"; return 1; }
   fi
-  install -m 0755 "$tmp" "${BIN_DIR}/${NAME}"
+  install -m 0755 "$tmp" "${BIN_DIR}/${NAME}" || { rm -f "$tmp"; return 1; }
   rm -f "$tmp"
+  "${BIN_DIR}/${NAME}" version >/dev/null 2>&1 || return 1
 }
 
 install_from_clone() {
@@ -93,8 +102,14 @@ install_from_clone() {
   local tmp
   tmp="$(mktemp -d)"
   cyan "Cloning ${REPO}…"
-  git clone --depth 1 "$REPO" "$tmp/Baselock"
-  build_in "$tmp/Baselock"
+  if ! git clone --depth 1 "$REPO" "$tmp/Baselock"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  if ! build_in "$tmp/Baselock"; then
+    rm -rf "$tmp"
+    return 1
+  fi
   rm -rf "$tmp"
 }
 
